@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Animated Folders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .background-orb {
+        position: fixed;
+        top: -250px; /* offset for centering */
+        left: -250px; /* offset for centering */
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(131, 58, 180, 0.2), transparent 60%);
+        border-radius: 50%;
+        filter: blur(80px);
+        pointer-events: none;
+        z-index: 0;
+        transition: transform 0.2s linear;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
