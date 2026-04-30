@@ -81,10 +81,10 @@ const FolderBox: React.FC<FolderBoxProps> = ({ folders, activeIndex, onFolderCli
           
           <div className="absolute top-[-35px] left-[7.5px]" style={{ transformStyle: 'preserve-3d', transform: 'translateZ(-5px)' }}>
             {folders.map((folder, index) => {
-              // Calculate dynamic tab offset: starting from 110, going down by 15px for each folder
+              // Always keep tabs securely on the right edge of the folder (folder is 192px, tab is 96px -> 96px offset)
               const dynamicData = {
                 ...folder,
-                tabOffset: 110 - (index * 15)
+                tabOffset: 96
               };
               
               return (

@@ -23,7 +23,9 @@ const Folder: React.FC<FolderProps> = ({ data, renderIndex, activeIndex, activeR
   const [isInteracting, setIsInteracting] = useState(false);
 
   const calculateTransform = () => {
-    let baseTranslateZ = 80 - renderIndex * 16;
+    const boxDepth = 200; // Same as BOX_WIDTH
+    const spacing = boxDepth / totalRendered;
+    let baseTranslateZ = (boxDepth / 2) - (spacing / 2) - renderIndex * spacing;
     let translateY = 0;
     let translateX = 0;
 
