@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
-import { FolderData } from '../types';
-import { isHoverableDevice } from '../utils/device';
-import FolderItem from './FolderItem';
+import React, { useRef } from 'react';
 import Icon from './Icon';
+import { ExternalLink } from 'lucide-react';
+
+interface FolderData {
+  title: string;
+  gameUrl: string;
+  description: string;
+  youtubeId: string;
+  category?: string;
+  icon: string;
+  color: string;
+  borderColor: string;
+  textColor: string;
+}
 
 interface FolderProps {
+  key?: React.Key;
   data: FolderData;
   renderIndex: number;
   activeIndex: number | null;
@@ -14,135 +24,107 @@ interface FolderProps {
   onClick: (index: number) => void;
   onHover: () => void;
   isLoaded: boolean;
-  shuffleOffset?: { x: number; y: number };
 }
 
-const Folder: React.FC<FolderProps> = ({ data, renderIndex, activeIndex, activeRenderIndex, totalRendered, onClick, onHover, isLoaded, shuffleOffset }) => {
-  const isActive = activeIndex === data.originalIndex;
-  const zIndex = isActive ? 100 : totalRendered - renderIndex;
-  const [isInteracting, setIsInteracting] = useState(false);
-
-  const calculateTransform = () => {
-    const boxDepth = 200; // Same as BOX_WIDTH
-    const spacing = boxDepth / totalRendered;
-    let baseTranslateZ = (boxDepth / 2) - (spacing / 2) - renderIndex * spacing;
-    let translateY = 0;
-    let translateX = 0;
-
-    if (activeIndex !== null) {
-      if (isActive) {
-        translateY = -60;
-        baseTranslateZ += 15;
-      } else {
-        if (activeRenderIndex !== -1 && renderIndex > activeRenderIndex) {
-          // FIX: Corrected typo from `activeRenderindex` to `activeRenderIndex`.
-          const distance = renderIndex - activeRenderIndex;
-          const pushBack = Math.max(0, 40 - distance * 10);
-          baseTranslateZ -= pushBack;
-        }
-        if (shuffleOffset) {
-            translateX = shuffleOffset.x;
-            translateY += shuffleOffset.y;
-        }
-      }
-    }
-
-    // Initial load animation offset
-    const loadOffsetY = isLoaded ? 0 : 40;
-
-    return `translateX(${translateX}px) translateY(${translateY + loadOffsetY}px) translateZ(${baseTranslateZ}px)`;
-  };
+export default function Folder({ 
+  data, 
+  renderIndex, 
+  activeIndex,
+  activeRenderIndex,
+  totalRendered,
+  onClick, 
+  onHover,
+  isLoaded
+}: FolderProps) {
+  const isActive = renderIndex === activeRenderIndex;
   
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick(data.originalIndex);
+  const calculateTransform = () => {
+    const SPACING_Z = 60;
+    const SPACING_Y = 35;
+    const SPACING_X = 25;
+    
+    // relIdx > 0 means later in the list.
+    const relIdx = renderIndex - activeRenderIndex;
+    const distance = Math.abs(relIdx);
+    
+    let translateX = relIdx * SPACING_X;
+    let translateY = relIdx * SPACING_Y;
+    let translateZ = -Math.max(0, distance * SPACING_Z);
+    let rotateZ = relIdx * 2;
+
+    if (isActive) {
+      translateZ += 60;
+      translateX -= 50;
+      translateY -= 20;
+      rotateZ = 0;
     }
+
+    const loadOffsetZ = isLoaded ? 0 : -200;
+
+    return `translateX(${translateX}px) translateY(${translateY}px) translateZ(${translateZ + loadOffsetZ}px) rotateZ(${rotateZ}deg)`;
   };
 
-  const handleInteractionStart = () => {
-    if (!isActive) {
-      setIsInteracting(true);
-      onHover();
-    }
-  };
+  const transform = calculateTransform();
 
-  const handleInteractionEnd = () => {
-    setIsInteracting(false);
-  };
-
-  const interactionProps = {
-    onTouchStart: handleInteractionStart,
-    onTouchEnd: handleInteractionEnd,
-    ...(isHoverableDevice && {
-        onMouseEnter: handleInteractionStart,
-        onMouseLeave: handleInteractionEnd,
-    }),
-  };
-
-  const waveDelay = 150 + Math.sin(renderIndex / 2.5) * 150 + renderIndex * 40;
+  // Opacity controls based on distance
+  const relIdx = renderIndex - activeRenderIndex;
+  const distance = Math.abs(relIdx);
+  const opacity = Math.max(0.1, 1 - distance * 0.1);
+  const zIndex = 100 - distance;
 
   return (
     <div
-      onClick={() => onClick(data.originalIndex)}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
-      aria-pressed={isActive}
-      aria-label={`${data.title} folder`}
-      {...interactionProps}
-      className="absolute cursor-pointer transition-all duration-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-400/70 rounded-lg"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(renderIndex);
+      }}
+      onMouseEnter={() => {
+        if (!isActive) onHover();
+      }}
+      className={`absolute left-1/2 top-1/2 -ml-[90px] -mt-[90px] cursor-pointer transition-all duration-[600ms] ease-[cubic-bezier(0.23,1,0.32,1)]`}
       style={{
-        transform: calculateTransform(),
+        transform,
+        opacity: isLoaded ? opacity : 0,
         zIndex,
-        opacity: isLoaded ? 1 : 0,
-        transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
-        transitionDelay: `${waveDelay}ms`,
         transformStyle: 'preserve-3d',
       }}
     >
-      <div className="relative w-48 h-[153px]">
-        {[...Array(3)].map((_, i) => (
-          <FolderItem key={i} index={i} isActive={isActive} />
-        ))}
-        <div
-          className={`relative w-full h-full ${data.color} ${data.borderColor} border rounded-t-lg transition-transform duration-300 ease-out`}
-          style={{ transform: isInteracting ? 'translateY(-16px)' : 'translateY(0)' }}
-        >
-          <div className={`
-            absolute inset-0 flex items-center justify-center ${data.textColor === 'text-black' ? 'text-black/80' : 'text-white/80'}
-            transition-opacity duration-500 ease-out
-            ${isActive ? 'opacity-50' : 'opacity-0'}
-          `} style={{transitionDelay: isActive ? '300ms' : '0ms'}}>
-            <div className="w-16 h-16">
-              <Icon name={data.icon} />
-            </div>
-          </div>
-        </div>
-        <div
-          className={`absolute -top-px w-24 h-5 ${data.color} ${data.borderColor} border rounded-t-md transition-transform duration-300 ease-out flex items-center justify-center group`}
-          style={{ 
-            left: `${data.tabOffset}px`,
-            transform: isInteracting ? 'translateY(-16px)' : 'translateY(0)'
+      <div className="relative w-[180px] h-[180px]" style={{ transformStyle: 'preserve-3d' }}>
+        
+        {/* CD Disc (Always sticking out top) */}
+        <div 
+          className="absolute inset-0 rounded-full shadow-lg transition-all duration-700 flex items-center justify-center pointer-events-none"
+          style={{
+            background: 'conic-gradient(from 0deg at 50% 50%, #dcdcdc 0%, #ffffff 10%, #dcdcdc 20%, #f0f0f0 30%, #dcdcdc 40%, #ffffff 50%, #dcdcdc 60%, #f0f0f0 70%, #dcdcdc 80%, #ffffff 90%, #dcdcdc 100%)',
+            boxShadow: 'inset 0 0 5px rgba(255,255,255,0.8), 0 5px 20px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.7)',
+            transform: isActive ? 'translateY(-110px) translateX(-20px) rotate(180deg)' : 'translateY(-70px) rotate(0deg)',
+            zIndex: -1
           }}
         >
-          <span className={`${data.textColor || 'text-white/90'} text-[9px] font-bold tracking-wider truncate px-1`}>{data.title}</span>
+          {/* CD rainbow overlay */}
+          <div className="absolute inset-0 rounded-full mix-blend-overlay opacity-30 pointer-events-none" style={{ background: 'conic-gradient(from 45deg, red, yellow, lime, aqua, blue, magenta, red)' }} />
           
-          {/* External Link Quick Button */}
-          <div 
-            className={`absolute -top-8 left-1/2 -translate-x-1/2 p-1.5 rounded-full ${data.textColor === 'text-black' ? 'bg-black/10 hover:bg-black/20 border-black/30' : 'bg-white/20 hover:bg-white/40 border-white/30'} backdrop-blur-md transition-all duration-300 ${isInteracting || isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(data.gameUrl, '_blank');
-            }}
-            title="Open game in new tab"
-          >
-            <ExternalLink size={12} className={data.textColor === 'text-black' ? 'text-black' : 'text-white'} />
+          {/* CD inner ring */}
+          <div className="w-[50px] h-[50px] rounded-full border-[1.5px] border-gray-400/50 flex items-center justify-center shadow-[inset_0_0_8px_rgba(0,0,0,0.2)] bg-transparent">
+             <div className="w-4 h-4 rounded-full bg-black/40 shadow-inner" />
           </div>
         </div>
+
+        {/* Album Cover */}
+        <div
+          className={`absolute inset-0 w-full h-full ${data.color} ${data.borderColor} border-[1.5px] rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.7)] transition-transform duration-300 ease-out overflow-hidden`}
+          style={{ transformStyle: 'preserve-3d' }}
+        >
+          <div className={`absolute inset-0 flex items-center justify-center ${data.textColor === 'text-black' ? 'text-black/80' : 'text-white/80'} bg-black/20 backdrop-blur-[2px]`}>
+             <Icon name={data.icon} />
+             
+             {/* Glossy overlay */}
+             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 mix-blend-overlay pointer-events-none" />
+          </div>
+        </div>
+
       </div>
     </div>
   );
-};
-
-export default Folder;
+}
