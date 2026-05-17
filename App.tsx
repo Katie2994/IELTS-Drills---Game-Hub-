@@ -148,33 +148,58 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Reference to track last wheel event time to debounce slightly
+  const lastWheelTime = useRef(0);
+  const lastTouchY = useRef(0);
+
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.deltaY > 10) {
-       if (activeRenderIndex < filteredFolders.length - 1) {
-          handleFolderClick(filteredFolders[activeRenderIndex + 1].originalIndex);
-       }
-    } else if (e.deltaY < -10) {
-       if (activeRenderIndex > 0) {
-          handleFolderClick(filteredFolders[activeRenderIndex - 1].originalIndex);
-       }
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastWheelTime.current < 40) return; // limit firing rate for trackpads
+
+    if (e.deltaY > 10 || e.deltaY < -10) {
+      lastWheelTime.current = now;
+      setActiveIndex(prevIndex => {
+        const renderIndex = filteredFolders.findIndex(f => f.originalIndex === prevIndex);
+        if (renderIndex === -1) return prevIndex;
+
+        if (e.deltaY > 10 && renderIndex < filteredFolders.length - 1) {
+           playSound(openAudio, 'open');
+           return filteredFolders[renderIndex + 1].originalIndex;
+        } else if (e.deltaY < -10 && renderIndex > 0) {
+           playSound(openAudio, 'open');
+           return filteredFolders[renderIndex - 1].originalIndex;
+        }
+        return prevIndex;
+      });
     }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
+    lastTouchY.current = e.touches[0].clientY;
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const diff = touchStartY.current - touchEndY;
-    if (diff > 50) {
-      if (activeRenderIndex < filteredFolders.length - 1) {
-         handleFolderClick(filteredFolders[activeRenderIndex + 1].originalIndex);
-      }
-    } else if (diff < -50) {
-      if (activeRenderIndex > 0) {
-         handleFolderClick(filteredFolders[activeRenderIndex - 1].originalIndex);
-      }
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const currentY = e.touches[0].clientY;
+    const diff = lastTouchY.current - currentY;
+    
+    // threshold for sensitivity: move 20 pixels to trigger next item
+    if (Math.abs(diff) > 20) {
+      setActiveIndex(prevIndex => {
+        const renderIndex = filteredFolders.findIndex(f => f.originalIndex === prevIndex);
+        if (renderIndex === -1) return prevIndex;
+
+        if (diff > 0 && renderIndex < filteredFolders.length - 1) {
+           lastTouchY.current = currentY;
+           playSound(openAudio, 'open');
+           return filteredFolders[renderIndex + 1].originalIndex;
+        } else if (diff < 0 && renderIndex > 0) {
+           lastTouchY.current = currentY;
+           playSound(openAudio, 'open');
+           return filteredFolders[renderIndex - 1].originalIndex;
+        }
+        return prevIndex;
+      });
     }
   };
 
@@ -183,7 +208,7 @@ export default function App() {
       className="relative w-screen h-screen bg-[#050505] text-white overflow-hidden font-mono selection:bg-white/30" 
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
     >
       
       {/* Dynamic Background Blob based on active folder */}
