@@ -23,6 +23,7 @@ export default function App() {
 
   const hasInteractedRef = useRef(false);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const touchStartY = useRef(0);
 
   const openAudio = useMemo(() => {
     const audio = new Audio(OPEN_SOUND_DATA_URL);
@@ -159,12 +160,35 @@ export default function App() {
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchStartY.current - touchEndY;
+    if (diff > 50) {
+      if (activeRenderIndex < filteredFolders.length - 1) {
+         handleFolderClick(filteredFolders[activeRenderIndex + 1].originalIndex);
+      }
+    } else if (diff < -50) {
+      if (activeRenderIndex > 0) {
+         handleFolderClick(filteredFolders[activeRenderIndex - 1].originalIndex);
+      }
+    }
+  };
+
   return (
-    <div className="relative w-screen h-screen bg-[#050505] text-white overflow-hidden font-mono selection:bg-white/30" onWheel={handleWheel}>
+    <div 
+      className="relative w-screen h-screen bg-[#050505] text-white overflow-hidden font-mono selection:bg-white/30" 
+      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       
       {/* Dynamic Background Blob based on active folder */}
       <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vh] h-[80vh] rounded-full blur-[100px] opacity-20 pointer-events-none transition-all duration-1000 ease-in-out"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vh] md:w-[80vh] h-[60vh] md:h-[80vh] rounded-full blur-[100px] opacity-20 pointer-events-none transition-all duration-1000 ease-in-out"
         style={{ 
           background: activeFolderData?.category === 'Drills Originals' ? '#eec822' : '#3b82f6',
           transform: `translate(-50%, -50%) scale(${isLoaded ? 1.2 : 0.8})`
@@ -172,17 +196,17 @@ export default function App() {
       />
 
       {/* Header, Search, Categories */}
-      <div className="fixed top-8 left-10 tracking-[0.2em] text-[11px] text-white/30 uppercase z-30 pointer-events-auto">
+      <div className="fixed top-4 md:top-8 left-4 md:left-10 tracking-[0.2em] text-[10px] md:text-[11px] text-white/30 uppercase z-30 pointer-events-auto">
         IELTS Drills / <span className="text-[#7DF9FF]">Albums</span>
       </div>
       
-      <div className="fixed top-[60px] left-10 w-[380px] z-30 flex flex-col gap-4 pointer-events-auto">
+      <div className="fixed top-[40px] md:top-[60px] left-4 md:left-10 w-[calc(100vw-2rem)] md:w-[380px] z-30 flex flex-col gap-3 md:gap-4 pointer-events-auto pr-[80px] md:pr-0">
          <input 
             type="text" 
             placeholder="Search game..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-[#7DF9FF] transition-colors font-mono shadow-lg placeholder:text-white/20"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 md:px-4 py-2 text-white text-[13px] md:text-sm outline-none focus:border-[#7DF9FF] transition-colors font-mono shadow-lg placeholder:text-white/20"
          />
          
          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -190,7 +214,7 @@ export default function App() {
                <button 
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`whitespace-nowrap px-3 py-1.5 text-xs rounded-full font-mono transition-colors border shadow-md ${activeCategory === cat ? 'bg-[#7DF9FF] text-black border-[#7DF9FF] font-bold' : 'bg-black/50 text-white/60 border-white/10 hover:text-white hover:border-white/30 backdrop-blur-md'}`}
+                  className={`whitespace-nowrap px-3 py-1.5 text-[11px] md:text-xs rounded-full font-mono transition-colors border shadow-md ${activeCategory === cat ? 'bg-[#7DF9FF] text-black border-[#7DF9FF] font-bold' : 'bg-black/50 text-white/60 border-white/10 hover:text-white hover:border-white/30 backdrop-blur-md'}`}
                >
                   {cat}
                </button>
@@ -198,27 +222,27 @@ export default function App() {
          </div>
       </div>
 
-      <div className="fixed top-8 right-10 z-30 flex items-center gap-6 pointer-events-auto">
-         <div className="tracking-[0.1em] text-[11px] text-white/30 drop-shadow-md">
+      <div className="fixed top-4 md:top-8 right-4 md:right-10 z-30 flex items-center gap-4 md:gap-6 pointer-events-auto">
+         <div className="tracking-[0.1em] text-[10px] md:text-[11px] text-white/30 drop-shadow-md hidden md:block">
             {filteredFolders.length} TRACKS
          </div>
          <button 
            onClick={toggleBgm}
-           className="p-2 rounded-full bg-white/5 hover:bg-white/20 border border-white/20 transition-all text-sm shadow-[0_0_10px_rgba(255,255,255,0.1)]"
+           className="p-1.5 md:p-2 rounded-full bg-white/5 hover:bg-white/20 border border-white/20 transition-all text-xs md:text-sm shadow-[0_0_10px_rgba(255,255,255,0.1)]"
            title="Toggle BGM"
          >
            {isBgmPlaying ? '🔊' : '🔇'}
          </button>
       </div>
 
-      <div className="fixed bottom-[140px] right-10 text-[10px] text-white/25 tracking-[0.1em] animate-pulse z-20 [writing-mode:vertical-rl]">
+      <div className="fixed bottom-[140px] right-4 md:right-10 text-[10px] text-white/25 tracking-[0.1em] animate-pulse z-20 [writing-mode:vertical-rl] hidden md:block">
         SCROLL TO BROWSE
       </div>
 
       {/* Main 3D Canvas / Stack */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-visible">
          <div className="relative w-full h-full" style={{ perspective: '1200px' }}>
-            <div className="absolute top-[45%] left-[80%]" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-25deg) rotateX(5deg)' }}>
+            <div className="absolute top-[25%] md:top-[45%] left-[85%] md:left-[80%] scale-50 md:scale-100" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-25deg) rotateX(5deg)' }}>
                {filteredFolders.map((folder, index) => {
                   const relIdx = index - activeRenderIndex;
                   if (Math.abs(relIdx) > 20) return null;
@@ -242,11 +266,11 @@ export default function App() {
       </div>
 
       {/* Track List */}
-      <div className="fixed left-0 top-[180px] w-[500px] h-[calc(100vh-320px)] flex flex-col justify-center pl-10 pointer-events-none z-10" style={{ perspective: '800px' }}>
+      <div className="fixed left-0 top-[140px] md:top-[180px] w-full md:w-[500px] h-[calc(100vh-280px)] md:h-[calc(100vh-320px)] flex flex-col justify-center pl-4 md:pl-10 pointer-events-none z-10" style={{ perspective: '800px' }}>
          {filteredFolders.map((folder, index) => {
              const relIdx = index - activeRenderIndex;
              const absIdx = Math.abs(relIdx);
-             if (absIdx > 10) return null;
+             if (absIdx > 8) return null;
 
              const isActive = index === activeRenderIndex;
              const scale = 1 - absIdx * 0.05;
@@ -256,7 +280,7 @@ export default function App() {
              return (
                <div 
                  key={folder.originalIndex}
-                 className={`relative flex flex-col my-[5px] py-1 cursor-pointer pointer-events-auto transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] group ${isActive ? 'active' : ''}`}
+                 className={`relative flex flex-col my-[4px] md:my-[5px] py-1 cursor-pointer pointer-events-auto transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] group ${isActive ? 'active' : ''}`}
                  style={{
                    transform: `scale(${scale}) translateX(${translateX}px)`,
                    opacity,
@@ -266,18 +290,18 @@ export default function App() {
                >
                   {/* indicator line */}
                   <div 
-                     className="absolute -left-6 top-1/2 h-px -translate-y-1/2 transition-all duration-300"
+                     className="absolute -left-4 md:-left-6 top-1/2 h-px -translate-y-1/2 transition-all duration-300"
                      style={{ 
-                        width: isActive ? '20px' : '0px', 
+                        width: isActive ? '16px' : '0px', 
                         backgroundColor: isActive ? '#fff' : 'rgba(255,255,255,0.3)',
                         opacity: isActive ? 1 : 0
                      }} 
                   />
                   
-                  <div className={`font-mono text-[16px] md:text-[20px] font-bold truncate max-w-[420px] tracking-[0.02em] transition-colors duration-300 leading-[1.2] ${isActive ? 'text-[#7DF9FF] drop-shadow-[0_0_8px_rgba(125,249,255,0.5)]' : 'text-white/85 group-hover:text-white'}`}>
+                  <div className={`font-mono text-[14px] md:text-[20px] font-bold truncate max-w-[200px] sm:max-w-[300px] md:max-w-[420px] tracking-[0.02em] transition-colors duration-300 leading-[1.2] ${isActive ? 'text-[#7DF9FF] drop-shadow-[0_0_8px_rgba(125,249,255,0.5)]' : 'text-white/85 group-hover:text-white'}`}>
                     {folder.title}
                   </div>
-                  <div className={`font-mono text-[11px] md:text-[13px] font-normal truncate max-w-[420px] tracking-[0.05em] transition-colors duration-300 leading-[1.3] mt-[2px] ${isActive ? 'text-white/70' : 'text-white/40 group-hover:text-white/70'}`}>
+                  <div className={`font-mono text-[10px] md:text-[13px] font-normal truncate max-w-[200px] sm:max-w-[300px] md:max-w-[420px] tracking-[0.05em] transition-colors duration-300 leading-[1.3] mt-[2px] ${isActive ? 'text-white/70' : 'text-white/40 group-hover:text-white/70'}`}>
                     {folder.category} {folder.category === 'Drills Originals' && '★'}
                   </div>
                </div>
@@ -291,7 +315,7 @@ export default function App() {
       {/* Middle popup for embedded cover (like an album sleeve) */}
       {activeFolderData && (
         <div 
-           className="fixed left-[440px] top-[45%] -translate-y-[45%] w-[420px] pointer-events-auto z-20 perspective-[1000px] animate-in slide-in-from-left fade-in duration-700 ease-out fill-mode-both"
+           className="fixed left-4 right-4 md:left-[440px] md:right-auto top-[28%] md:top-[45%] md:-translate-y-[45%] md:w-[420px] pointer-events-auto z-20 perspective-[1000px] animate-in slide-in-from-left fade-in duration-700 ease-out fill-mode-both max-w-[420px] mx-auto scale-[0.8] md:scale-100 origin-top"
            key={activeFolderData.originalIndex}
         >
             <div className="relative w-full aspect-square bg-[#111] rounded-lg shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-white/10 flex flex-col items-center justify-center transform transition-transform duration-700 hover:scale-[1.02] hover:rotateY(-5deg)" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-15deg)' }}>
@@ -342,41 +366,41 @@ export default function App() {
 
       {/* Now Playing Bar with more details */}
       {activeFolderData && (
-        <div className="fixed bottom-8 left-10 right-[380px] flex items-center gap-5 bg-black/40 border border-white/10 rounded-2xl px-5 py-4 backdrop-blur-xl z-20 shadow-2xl pointer-events-auto">
+        <div className="fixed bottom-4 md:bottom-8 left-4 md:left-10 right-4 md:right-[380px] flex items-center gap-3 md:gap-5 bg-black/50 border border-white/10 rounded-2xl px-4 md:px-5 py-3 md:py-4 backdrop-blur-xl z-30 shadow-2xl pointer-events-auto overflow-hidden">
            {/* Cover Thumbnail */}
-           <div className={`w-14 h-14 rounded-lg shrink-0 flex items-center justify-center border border-white/20 shadow-inner ${activeFolderData.color}`}>
-              <Icon name={activeFolderData.icon} className="w-7 h-7 text-white/80" />
+           <div className={`w-10 h-10 md:w-14 md:h-14 rounded-lg shrink-0 flex items-center justify-center border border-white/20 shadow-inner ${activeFolderData.color}`}>
+              <Icon name={activeFolderData.icon} className="w-5 h-5 md:w-7 md:h-7 text-white/80" />
            </div>
            
            {/* Info */}
-           <div className="flex-1 min-w-0 flex flex-col justify-center px-2">
-              <div className="text-[16px] md:text-[18px] font-bold text-white truncate tracking-[0.02em] flex items-center drop-shadow-md">
+           <div className="flex-1 min-w-0 flex flex-col justify-center px-1 md:px-2">
+              <div className="text-[14px] md:text-[18px] font-bold text-white truncate tracking-[0.02em] flex items-center drop-shadow-md">
                  {activeFolderData.title}
               </div>
-              <div className="text-[12px] md:text-[13px] text-white/70 mt-1 tracking-wide line-clamp-2 leading-relaxed max-w-3xl font-sans drop-shadow-md">
+              <div className="text-[10px] md:text-[13px] text-white/70 mt-0.5 md:mt-1 tracking-wide line-clamp-2 leading-tight md:leading-relaxed max-w-3xl font-sans drop-shadow-md">
                  <span className="font-semibold text-[#7DF9FF] mr-2">[{activeFolderData.category}]</span> 
                  {activeFolderData.description}
               </div>
            </div>
 
            {/* Controls */}
-           <div className="flex items-center gap-4 shrink-0">
+           <div className="flex items-center gap-2 md:gap-4 shrink-0">
               <button 
-                className="text-white/60 hover:text-white transition-colors p-3 hover:scale-110" 
+                className="text-white/60 hover:text-white transition-colors p-2 md:p-3 hover:scale-110" 
                 onClick={() => {
                    if (activeRenderIndex > 0) handleFolderClick(filteredFolders[activeRenderIndex - 1].originalIndex);
                 }}
               >◀◀</button>
               
               <button 
-                className="text-black bg-white hover:bg-[#7DF9FF] hover:scale-105 transition-all w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
+                className="text-black bg-white hover:bg-[#7DF9FF] hover:scale-105 transition-all w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center text-sm md:text-xl shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
                 onClick={() => window.open(activeFolderData.gameUrl, '_blank')}
               >
                  ▶
               </button>
 
               <button 
-                className="text-white/60 hover:text-white transition-colors p-3 hover:scale-110" 
+                className="text-white/60 hover:text-white transition-colors p-2 md:p-3 hover:scale-110" 
                 onClick={() => {
                    if (activeRenderIndex < filteredFolders.length - 1) handleFolderClick(filteredFolders[activeRenderIndex + 1].originalIndex);
                 }}
