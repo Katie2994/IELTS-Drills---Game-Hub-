@@ -5,7 +5,7 @@ import { OPEN_SOUND_DATA_URL, CLOSE_SOUND_DATA_URL } from './assets/sounds';
 import Folder from './components/Folder';
 import Icon from './components/Icon';
 
-const BGM_URL = "https://cdn.pixabay.com/audio/2022/10/25/audio_51bf12f458.mp3"; // royalty free synthwave/epic game intro
+const BGM_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3"; // royalty free synthwave/epic game intro
 
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -216,9 +216,9 @@ export default function App() {
       </div>
 
       {/* Main 3D Canvas / Stack */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center pl-[15vw]">
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
          <div className="relative w-full h-full" style={{ perspective: '1200px' }}>
-            <div className="absolute top-[45%] left-[55%]" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-25deg) rotateX(5deg)' }}>
+            <div className="absolute top-[45%] left-[80%]" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-25deg) rotateX(5deg)' }}>
                {filteredFolders.map((folder, index) => {
                   const relIdx = index - activeRenderIndex;
                   if (Math.abs(relIdx) > 20) return null;
@@ -288,10 +288,10 @@ export default function App() {
          )}
       </div>
 
-      {/* Right side popup for embedded cover (like an album sleeve) */}
+      {/* Middle popup for embedded cover (like an album sleeve) */}
       {activeFolderData && (
         <div 
-           className="fixed right-10 top-1/2 -translate-y-1/2 w-[340px] pointer-events-auto z-20 perspective-[1000px] animate-in slide-in-from-right fade-in duration-700 ease-out fill-mode-both"
+           className="fixed left-[440px] top-[45%] -translate-y-[45%] w-[420px] pointer-events-auto z-20 perspective-[1000px] animate-in slide-in-from-left fade-in duration-700 ease-out fill-mode-both"
            key={activeFolderData.originalIndex}
         >
             <div className="relative w-full aspect-square bg-[#111] rounded-lg shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-white/10 flex flex-col items-center justify-center transform transition-transform duration-700 hover:scale-[1.02] hover:rotateY(-5deg)" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-15deg)' }}>
@@ -299,32 +299,44 @@ export default function App() {
                {/* Ambient hue */}
                <div className={`absolute inset-0 rounded-lg opacity-20 ${activeFolderData.category === 'Drills Originals' ? 'bg-[#ffe36d]' : 'bg-[#7DF9FF]'}`} />
                
-               <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
-                  <span className="text-[10px] font-mono tracking-widest text-white/50 uppercase">Album Cover</span>
+               <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10 pointer-events-none pb-1 border-b border-white/10">
+                  <span className="text-[10px] font-mono tracking-widest text-white/50 uppercase">Album Cover - Visualizer</span>
                   {activeFolderData.category === 'Drills Originals' && (
                       <span className="text-[10px] font-bold text-[#ffe36d] border border-[#ffe36d]/50 px-2 rounded-full drop-shadow-md">ORIGINAL</span>
                   )}
                </div>
 
-               <Icon name={activeFolderData.icon} className="w-32 h-32 text-white/40 drop-shadow-2xl z-10" />
+               {/* Embed Game in Album Cover */}
+               <div className="absolute left-6 right-6 top-14 bottom-24 rounded-lg overflow-hidden bg-black/50 border border-white/20 z-10 shadow-inner">
+                   <iframe src={activeFolderData.gameUrl} className="w-full h-full opacity-80 pointer-events-none transform scale-[0.95]" frameBorder="0" scrolling="no" />
+                   {/* Overlay to catch clicks and keep styling */}
+                   <div className="absolute inset-0 z-10 bg-gradient-to-tr from-black/50 via-transparent to-white/10 pointer-events-none mix-blend-overlay" />
+               </div>
                
-               <div className="absolute bottom-6 left-6 right-6 z-10 p-2 backdrop-blur-md bg-black/20 rounded-lg border border-white/5 outline outline-1 outline-black/30">
+               <div className="absolute bottom-6 left-6 right-6 z-10 p-3 backdrop-blur-md bg-black/40 rounded-lg border border-white/10 outline outline-1 outline-black/30 pointer-events-none shadow-xl">
                   <div className="text-[18px] leading-tight font-bold font-mono text-white line-clamp-2 drop-shadow-lg mb-1">{activeFolderData.title}</div>
                   <div className="text-[10px] text-white/60 font-mono drop-shadow-md uppercase tracking-wider">{activeFolderData.category}</div>
                </div>
 
                {/* Vinyl Record decorative edge sticking out slightly */}
-               <div className="absolute right-[-25px] top-[10%] bottom-[10%] w-[50px] bg-[#0a0a0a] rounded-r-full shadow-inner border-y border-r border-[#333] -z-10 flex items-center justify-end pr-2 overflow-hidden">
-                  <div className="absolute inset-0 rounded-r-full mix-blend-overlay opacity-10" style={{ background: 'conic-gradient(from 45deg, red, yellow, lime, aqua, blue, magenta, red)' }} />
+               <div className="absolute right-[-35px] top-[10%] bottom-[10%] w-[60px] bg-[#0a0a0a] rounded-r-full shadow-[inset_10px_0_20px_rgba(0,0,0,1)] border-y border-r border-white/5 -z-10 flex items-center justify-end pr-3 overflow-hidden">
+                  <div className="absolute inset-0 rounded-r-full mix-blend-overlay opacity-20" style={{ background: 'conic-gradient(from 45deg, red, yellow, lime, aqua, blue, magenta, red)' }} />
+                  {/* vinyl ridges */}
+                  <div className="absolute right-1 w-[20px] h-full border-r-[2px] border-white/5 rounded-r-full pointer-events-none" />
+                  <div className="absolute right-3 w-[20px] h-full border-r-[2px] border-white/5 rounded-r-full pointer-events-none" />
+                  <div className="absolute right-5 w-[20px] h-full border-r-[2px] border-white/5 rounded-r-full pointer-events-none" />
                </div>
             </div>
 
-            <button 
-               className="w-full mt-8 py-4 rounded-xl font-bold font-mono uppercase tracking-widest bg-[#7DF9FF] text-black shadow-[0_0_20px_rgba(125,249,255,0.4)] hover:bg-white hover:scale-[1.02] transition-all duration-300"
-               onClick={() => window.open(activeFolderData.gameUrl, '_blank')}
-            >
-                Play Game
-            </button>
+            <div className="mt-8 relative group">
+               <div className="absolute -inset-1 bg-gradient-to-r from-[#7DF9FF] to-[#3b82f6] rounded-xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
+               <button 
+                  className="relative w-full py-4 rounded-xl font-bold font-mono uppercase tracking-widest bg-black text-[#7DF9FF] border border-[#7DF9FF]/50 hover:bg-[#7DF9FF] hover:text-black transition-all duration-300 transform group-hover:translate-y-[-2px]"
+                  onClick={() => window.open(activeFolderData.gameUrl, '_blank')}
+               >
+                   O P E N &nbsp;&nbsp; G A M E
+               </button>
+            </div>
         </div>
       )}
 
