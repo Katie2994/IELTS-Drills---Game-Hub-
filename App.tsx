@@ -1,443 +1,673 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Compass,
+  Heart,
+  Layers,
+  Search,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { FOLDER_DATA } from './data/folders';
-import { THEMES } from './data/themes';
-import { OPEN_SOUND_DATA_URL, CLOSE_SOUND_DATA_URL } from './assets/sounds';
-import Folder from './components/Folder';
-import Icon from './components/Icon';
+import { galleryAudio } from './utils/galleryAudio';
+import GalleryRoom, { GalleryRoomHandle, ScreenRect } from './components/GalleryRoom';
+import GameDetailPage, { FrameOption, PaceOption } from './components/GameDetailPage';
+import GameListView from './components/GameListView';
+import QueueDrawer, { QueueItem } from './components/QueueDrawer';
+import SearchModal from './components/SearchModal';
 
-const BGM_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3"; // royalty free synthwave/epic game intro
+type ActiveView = 'gallery' | 'list' | 'detail';
 
 export default function App() {
-  const [isLoaded, setIsLoaded] = useState(false);
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('All');
-  
-  const categories = useMemo(() => {
-    const cats = Array.from(new Set(FOLDER_DATA.map(f => f.category))).filter((c): c is string => !!c && c !== 'Drills Originals');
-    return ['All', 'Drills Originals', ...cats];
-  }, []);
+  const galleryRef = useRef<GalleryRoomHandle>(null);
 
-  const [activeIndex, setActiveIndex] = useState<number | null>(FOLDER_DATA[0]?.title ? 0 : null);
-  const [isBgmPlaying, setIsBgmPlaying] = useState(false); // start off, until interaction
+  const [isReady, setIsReady] = useState(false);
+  const [introPlayed, setIntroPlayed] = useState(false);
 
-  const hasInteractedRef = useRef(false);
-  const bgmRef = useRef<HTMLAudioElement | null>(null);
-  const touchStartY = useRef(0);
+  const [view, setView] = useState<ActiveView>('gallery');
+  const [listCategory, setListCategory] = useState<string>('All');
 
-  const openAudio = useMemo(() => {
-    const audio = new Audio(OPEN_SOUND_DATA_URL);
-    audio.volume = 0.4;
-    return audio;
-  }, []);
+  const [isFocused, setIsFocused] = useState(false);
+  const [focusedGameIndex, setFocusedGameIndex] = useState<number | null>(null);
+  const [lastGameIndex, setLastGameIndex] = useState<number>(0);
 
-  const closeAudio = useMemo(() => {
-    const audio = new Audio(CLOSE_SOUND_DATA_URL);
-    audio.volume = 0.3;
-    return audio;
-  }, []);
+  const [detailGameIndex, setDetailGameIndex] = useState<number | null>(null);
+  const [flyerRect, setFlyerRect] = useState<ScreenRect | null>(null);
+
+  const [hoverPill, setHoverPill] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+  }>({ visible: false, x: 0, y: 0 });
+
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  const [isBgmPlaying, setIsBgmPlaying] = useState(false);
 
   useEffect(() => {
-    bgmRef.current = new Audio(BGM_URL);
-    bgmRef.current.loop = true;
-    bgmRef.current.volume = 0.15;
-
-    const unlockAudio = () => {
-      if (!hasInteractedRef.current) {
-         hasInteractedRef.current = true;
-         bgmRef.current?.play().then(() => setIsBgmPlaying(true)).catch(() => {});
+    const unlock = () => {
+      const started = galleryAudio.unlockAndAutoStart();
+      if (started) {
+        setIsBgmPlaying(true);
       }
     };
-    window.addEventListener('click', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
-    window.addEventListener('touchstart', unlockAudio, { once: true });
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+
     return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
-      if (bgmRef.current) {
-        bgmRef.current.pause();
-      }
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+      galleryAudio.stopBgm(false);
     };
   }, []);
 
   const toggleBgm = () => {
-    if (bgmRef.current) {
-      if (isBgmPlaying) {
-        bgmRef.current.pause();
-      } else {
-        bgmRef.current.play().catch(console.error);
-      }
-    }
-    setIsBgmPlaying(!isBgmPlaying);
+    const playing = galleryAudio.toggleBgm();
+    setIsBgmPlaying(playing);
   };
 
-  const filteredFolders = useMemo(() => {
-    const list = FOLDER_DATA.map((f, i) => ({ ...f, originalIndex: i }))
-                            .filter(f => {
-                                const matchSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase());
-                                const matchCat = activeCategory === 'All' || f.category === activeCategory;
-                                return matchSearch && matchCat;
-                            });
-
-    return list.map((folder, index) => {
-      let colorScheme = THEMES.default.folderColors[index % THEMES.default.folderColors.length];
-      let textColor = 'text-white/90';
-      if (folder.category === 'Drills Originals') {
-        colorScheme = {
-          color: 'bg-[#ffe36d]/80',
-          borderColor: 'border-[#eec822]/80'
-        };
-        textColor = 'text-black';
-      }
-      return {
-        ...folder,
-        color: colorScheme.color,
-        borderColor: colorScheme.borderColor,
-        textColor: textColor,
-      };
-    });
-  }, [searchTerm, activeCategory]);
-
-  useEffect(() => {
-     if (filteredFolders.length > 0) {
-        const activeExists = filteredFolders.some(f => f.originalIndex === activeIndex);
-        if (!activeExists) {
-           setActiveIndex(filteredFolders[0].originalIndex);
-        }
-     } else {
-        setActiveIndex(null);
-     }
-  }, [filteredFolders, activeIndex]);
-
-  const activeRenderIndex = useMemo(() => {
-    if (activeIndex === null) return 0;
-    const idx = filteredFolders.findIndex(f => f.originalIndex === activeIndex);
-    return Math.max(0, idx);
-  }, [activeIndex, filteredFolders]);
-
-  const activeFolderData = filteredFolders[activeRenderIndex] || null;
-
-  const playSound = (audio: HTMLAudioElement, name: string) => {
-    if (!hasInteractedRef.current) return;
-    audio.currentTime = 0;
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(e => {
-        if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
-          console.error(`Error playing ${name} sound:`, e);
-        }
-      });
-    }
-  };
-
-  const handleFolderClick = (index: number) => {
-    setActiveIndex(prevIndex => {
-      if (prevIndex === index) {
-        playSound(closeAudio, 'close');
-        return index; // we want it to stay selected, basically "focus" it
-      } else {
-        playSound(openAudio, 'open');
-        return index;
-      }
-    });
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100);
-    return () => clearTimeout(timer);
+  const handleRoomReady = useCallback(() => {
+    setIsReady(true);
+    window.setTimeout(() => {
+      setIntroPlayed(true);
+    }, 1500);
   }, []);
 
-  // Reference to track last wheel event time to debounce slightly
-  const lastWheelTime = useRef(0);
-  const lastTouchY = useRef(0);
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.stopPropagation();
-    const now = Date.now();
-    if (now - lastWheelTime.current < 40) return; // limit firing rate for trackpads
-
-    if (e.deltaY > 10 || e.deltaY < -10) {
-      lastWheelTime.current = now;
-      setActiveIndex(prevIndex => {
-        const renderIndex = filteredFolders.findIndex(f => f.originalIndex === prevIndex);
-        if (renderIndex === -1) return prevIndex;
-
-        if (e.deltaY > 10 && renderIndex < filteredFolders.length - 1) {
-           playSound(openAudio, 'open');
-           return filteredFolders[renderIndex + 1].originalIndex;
-        } else if (e.deltaY < -10 && renderIndex > 0) {
-           playSound(openAudio, 'open');
-           return filteredFolders[renderIndex - 1].originalIndex;
-        }
-        return prevIndex;
-      });
+  const handleFocusChange = useCallback((focused: boolean, gameIndex: number | null) => {
+    setIsFocused(focused);
+    setFocusedGameIndex(gameIndex);
+    if (gameIndex !== null) {
+      setLastGameIndex(gameIndex);
     }
-  };
+  }, []);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    lastTouchY.current = e.touches[0].clientY;
-  };
+  const handleHoverPill = useCallback((visible: boolean, x: number, y: number) => {
+    setHoverPill({ visible, x, y });
+  }, []);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const currentY = e.touches[0].clientY;
-    const diff = lastTouchY.current - currentY;
-    
-    // threshold for sensitivity: move 20 pixels to trigger next item
-    if (Math.abs(diff) > 20) {
-      setActiveIndex(prevIndex => {
-        const renderIndex = filteredFolders.findIndex(f => f.originalIndex === prevIndex);
-        if (renderIndex === -1) return prevIndex;
+  const openGameDetail = useCallback(
+    (gameIndex: number, rect: ScreenRect) => {
+      galleryAudio.playOpen();
+      setLastGameIndex(gameIndex);
+      setFlyerRect(rect);
+      setDetailGameIndex(gameIndex);
+      setHoverPill({ visible: false, x: 0, y: 0 });
+      setView('detail');
+    },
+    []
+  );
 
-        if (diff > 0 && renderIndex < filteredFolders.length - 1) {
-           lastTouchY.current = currentY;
-           playSound(openAudio, 'open');
-           return filteredFolders[renderIndex + 1].originalIndex;
-        } else if (diff < 0 && renderIndex > 0) {
-           lastTouchY.current = currentY;
-           playSound(openAudio, 'open');
-           return filteredFolders[renderIndex - 1].originalIndex;
+  const returnToRoom = useCallback(
+    (focusLast = true) => {
+      if (view === 'gallery') {
+        if (isFocused) {
+          galleryRef.current?.stepBack();
         }
-        return prevIndex;
+        return;
+      }
+      galleryAudio.playClose();
+      setView('gallery');
+      setHoverPill({ visible: false, x: 0, y: 0 });
+      if (focusLast) {
+        galleryRef.current?.focusGame(lastGameIndex, false);
+      }
+    },
+    [view, isFocused, lastGameIndex]
+  );
+
+  const openList = useCallback(
+    (category = 'All') => {
+      galleryAudio.playOpen();
+      setListCategory(category);
+      setHoverPill({ visible: false, x: 0, y: 0 });
+      setView('list');
+    },
+    []
+  );
+
+  const handleAddToQueue = useCallback(
+    (gameIndex: number, frame: FrameOption, pace: PaceOption) => {
+      galleryAudio.playQueueAdd();
+      setQueueItems((prev) => {
+        const exists = prev.some(
+          (item) =>
+            item.gameIndex === gameIndex && item.frame === frame && item.pace === pace
+        );
+        if (exists) return prev;
+        return [
+          {
+            id: `${gameIndex}-${frame}-${pace}-${Date.now()}`,
+            gameIndex,
+            frame,
+            pace,
+            addedAt: Date.now(),
+          },
+          ...prev,
+        ];
       });
-    }
+      setIsDrawerOpen(true);
+    },
+    []
+  );
+
+  const handleRemoveQueueItem = useCallback((id: string) => {
+    setQueueItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const handleToggleBookmark = useCallback((gameIndex: number) => {
+    setBookmarks((prev) =>
+      prev.includes(gameIndex) ? prev.filter((i) => i !== gameIndex) : [...prev, gameIndex]
+    );
+  }, []);
+
+  const handleJumpInRoom = useCallback(
+    (gameIndex: number) => {
+      setView('gallery');
+      setLastGameIndex(gameIndex);
+      galleryRef.current?.focusGame(gameIndex, false);
+    },
+    []
+  );
+
+  const handleHeaderBookmark = () => {
+    const targetIdx =
+      view === 'detail' && detailGameIndex !== null
+        ? detailGameIndex
+        : focusedGameIndex ?? lastGameIndex;
+    handleToggleBookmark(targetIdx);
   };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (isSearchOpen) {
+          setIsSearchOpen(false);
+          return;
+        }
+        if (isHelpOpen) {
+          setIsHelpOpen(false);
+          return;
+        }
+        if (isDrawerOpen) {
+          setIsDrawerOpen(false);
+          return;
+        }
+        if (view === 'detail') {
+          returnToRoom(true);
+          return;
+        }
+        if (view === 'list') {
+          returnToRoom(true);
+          return;
+        }
+        if (isFocused) {
+          galleryRef.current?.stepBack();
+        }
+        return;
+      }
+
+      if (view === 'gallery' && !isSearchOpen && !isDrawerOpen && !isHelpOpen) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          galleryRef.current?.step(1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          galleryRef.current?.step(-1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [view, isFocused, isDrawerOpen, isSearchOpen, isHelpOpen, returnToRoom]);
+
+  const activeNavBookmark = useMemo(() => {
+    const targetIdx =
+      view === 'detail' && detailGameIndex !== null
+        ? detailGameIndex
+        : focusedGameIndex ?? lastGameIndex;
+    return bookmarks.includes(targetIdx);
+  }, [view, detailGameIndex, focusedGameIndex, lastGameIndex, bookmarks]);
+
+  const navIntroClass = introPlayed
+    ? ''
+    : isReady
+      ? 'intro-play'
+      : 'intro-pending';
+
+  const guiIntroClass = introPlayed
+    ? ''
+    : isReady
+      ? 'intro-play'
+      : 'intro-pending';
 
   return (
-    <div 
-      className="relative w-screen h-screen bg-[#050505] text-white overflow-hidden font-mono selection:bg-white/30" 
-      onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-    >
-      
-      {/* Dynamic Background Blob based on active folder */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vh] md:w-[80vh] h-[60vh] md:h-[80vh] rounded-full blur-[100px] opacity-20 pointer-events-none transition-all duration-1000 ease-in-out"
-        style={{ 
-          background: activeFolderData?.category === 'Drills Originals' ? '#eec822' : '#3b82f6',
-          transform: `translate(-50%, -50%) scale(${isLoaded ? 1.2 : 0.8})`
-        }} 
+    <>
+      {/* 1. Top Navigation */}
+      <header
+        className={`nav ${view !== 'gallery' ? 'solid' : ''} ${navIntroClass}`}
+      >
+        <button
+          type="button"
+          className="nav-logo"
+          onClick={() => returnToRoom(true)}
+        >
+          IELTS Drills
+        </button>
+
+        <nav className="nav-links" aria-label="Primary">
+          <button
+            type="button"
+            className={`nav-link ${view === 'gallery' ? 'active' : ''}`}
+            onClick={() => returnToRoom(true)}
+          >
+            Index
+          </button>
+          <button
+            type="button"
+            className={`nav-link ${view === 'list' && listCategory === 'All' ? 'active' : ''}`}
+            onClick={() => openList('All')}
+          >
+            Games
+          </button>
+          <button
+            type="button"
+            className={`nav-link ${view === 'list' && listCategory === 'Drills Originals' ? 'active' : ''}`}
+            onClick={() => openList('Drills Originals')}
+          >
+            Originals
+          </button>
+          <button
+            type="button"
+            className={`nav-link ${view === 'list' && listCategory === 'Phòng Thoát Hiểm' ? 'active' : ''}`}
+            onClick={() => openList('Phòng Thoát Hiểm')}
+          >
+            Escape
+          </button>
+          <button
+            type="button"
+            className="nav-link"
+            onClick={() => setIsHelpOpen(true)}
+          >
+            Help
+          </button>
+        </nav>
+
+        <div className="nav-right">
+          <button
+            type="button"
+            className="nav-search"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Search games"
+          >
+            <Search size={12} strokeWidth={1.6} />
+            <span>Search…</span>
+            <kbd className="nav-search-kbd">⌘K</kbd>
+          </button>
+
+          <button
+            type="button"
+            className="nav-search-mobile"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Search games"
+          >
+            <Search size={18} strokeWidth={1.7} />
+          </button>
+
+          <button
+            type="button"
+            className={`nav-pill-btn ${isBgmPlaying ? 'active' : ''}`}
+            onClick={toggleBgm}
+            aria-label="Toggle gallery soundtrack"
+            title={isBgmPlaying ? 'Mute gallery soundtrack' : 'Play gallery soundtrack'}
+          >
+            {isBgmPlaying ? <Volume2 size={14} strokeWidth={1.7} /> : <VolumeX size={14} strokeWidth={1.7} />}
+            <span>{isBgmPlaying ? 'SOUND' : 'MUTED'}</span>
+          </button>
+
+          <button
+            type="button"
+            className="nav-icon-btn nav-hide-sm"
+            onClick={() => {
+              const nextIdx = (lastGameIndex + 1) % 25;
+              handleJumpInRoom(nextIdx);
+            }}
+            aria-label="Discover next game"
+            title="Discover next game in 3D room"
+          >
+            <Compass size={18} strokeWidth={1.6} />
+          </button>
+
+          <button
+            type="button"
+            className="nav-icon-btn nav-hide-sm"
+            onClick={handleHeaderBookmark}
+            aria-label="Bookmark current game"
+            title="Bookmark current game"
+          >
+            <Heart
+              size={18}
+              strokeWidth={1.6}
+              fill={activeNavBookmark ? 'currentColor' : 'none'}
+            />
+          </button>
+
+          <button
+            type="button"
+            className="nav-icon-btn bag-only"
+            onClick={() => setIsDrawerOpen(true)}
+            aria-label="Open play queue"
+            title="Open play queue"
+          >
+            <Layers size={18} strokeWidth={1.6} />
+            {queueItems.length > 0 && (
+              <span className="nav-badge">{queueItems.length}</span>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* 2. 3D Gallery Corridor + Load Veil */}
+      <GalleryRoom
+        ref={galleryRef}
+        isActiveView={view === 'gallery' && !isDrawerOpen && !isSearchOpen && !isHelpOpen}
+        onFocusChange={handleFocusChange}
+        onHoverPill={handleHoverPill}
+        onOpenGame={openGameDetail}
+        onReady={handleRoomReady}
+        onStepSound={() => galleryAudio.playStep()}
       />
 
-      {/* Header, Search, Categories */}
-      <div className="fixed top-4 md:top-8 left-4 md:left-10 tracking-[0.2em] text-[10px] md:text-[11px] text-white/30 uppercase z-30 pointer-events-auto">
-        IELTS Drills / <span className="text-[#7DF9FF]">Albums</span>
-      </div>
-      
-      <div className="fixed top-[40px] md:top-[60px] left-4 md:left-10 w-[calc(100vw-2rem)] md:w-[380px] z-30 flex flex-col gap-3 md:gap-4 pointer-events-auto pr-[80px] md:pr-0">
-         <input 
-            type="text" 
-            placeholder="Search game..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 md:px-4 py-2 text-white text-[13px] md:text-sm outline-none focus:border-[#7DF9FF] transition-colors font-mono shadow-lg placeholder:text-white/20"
-         />
-         
-         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {categories.map(cat => (
-               <button 
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`whitespace-nowrap px-3 py-1.5 text-[11px] md:text-xs rounded-full font-mono transition-colors border shadow-md ${activeCategory === cat ? 'bg-[#7DF9FF] text-black border-[#7DF9FF] font-bold' : 'bg-black/50 text-white/60 border-white/10 hover:text-white hover:border-white/30 backdrop-blur-md'}`}
-               >
-                  {cat}
-               </button>
-            ))}
-         </div>
-      </div>
+      <div id="veil" className={isReady ? 'cleared' : ''} />
 
-      <div className="fixed top-4 md:top-8 right-4 md:right-10 z-30 flex items-center gap-4 md:gap-6 pointer-events-auto">
-         <div className="tracking-[0.1em] text-[10px] md:text-[11px] text-white/30 drop-shadow-md hidden md:block">
-            {filteredFolders.length} TRACKS
-         </div>
-         <button 
-           onClick={toggleBgm}
-           className="p-1.5 md:p-2 rounded-full bg-white/5 hover:bg-white/20 border border-white/20 transition-all text-xs md:text-sm shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-           title="Toggle BGM"
-         >
-           {isBgmPlaying ? '🔊' : '🔇'}
-         </button>
-      </div>
+      {/* 3. Gallery HUD Overlay */}
+      <div
+        className={`gui ${view !== 'gallery' ? 'hidden-ui' : ''} ${guiIntroClass}`}
+        aria-hidden={view !== 'gallery'}
+      >
+        {/* Left Navigation Arrows */}
+        <div className={`gui-arrows ${isFocused ? 'focused-hide-sm' : ''}`}>
+          <button
+            type="button"
+            className="gui-arrow-btn"
+            onClick={() => galleryRef.current?.step(-1)}
+            aria-label="Previous game"
+          >
+            <ArrowLeft size={22} strokeWidth={1.6} />
+          </button>
+          <button
+            type="button"
+            className="gui-arrow-btn"
+            onClick={() => galleryRef.current?.step(1)}
+            aria-label="Next game"
+          >
+            <ArrowRight size={22} strokeWidth={1.6} />
+          </button>
+        </div>
 
-      <div className="fixed bottom-[140px] right-4 md:right-10 text-[10px] text-white/25 tracking-[0.1em] animate-pulse z-20 [writing-mode:vertical-rl] hidden md:block">
-        SCROLL TO BROWSE
-      </div>
+        {/* Right Hint */}
+        <div className="gui-hint">
+          <span className="mask-line">
+            <span className="mask-inner mask-delay-0">
+              {isFocused ? 'Click the game to open it' : 'Scroll or drag to walk round'}
+            </span>
+          </span>
+          <span className="mask-line">
+            <span className="mask-inner mask-delay-1">
+              {isFocused ? 'Esc or click away to step back' : 'Click a poster to look closer'}
+            </span>
+          </span>
+        </div>
 
-      {/* Main 3D Canvas / Stack */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-visible">
-         <div className="relative w-full h-full" style={{ perspective: '1200px' }}>
-            <div className="absolute top-[25%] md:top-[45%] left-[85%] md:left-[80%] scale-50 md:scale-100" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-25deg) rotateX(5deg)' }}>
-               {filteredFolders.map((folder, index) => {
-                  const relIdx = index - activeRenderIndex;
-                  if (Math.abs(relIdx) > 20) return null;
-                  
-                  return (
-                     <Folder 
-                        key={folder.originalIndex}
-                        renderIndex={index}
-                        data={folder}
-                        activeIndex={activeIndex}
-                        activeRenderIndex={activeRenderIndex}
-                        totalRendered={filteredFolders.length}
-                        onClick={() => handleFolderClick(folder.originalIndex)}
-                        onHover={() => {}}
-                        isLoaded={isLoaded}
-                     />
-                  )
-               })}
-            </div>
-         </div>
-      </div>
-
-      {/* Track List */}
-      <div className="fixed left-0 top-[140px] md:top-[180px] w-full md:w-[500px] h-[calc(100vh-280px)] md:h-[calc(100vh-320px)] flex flex-col justify-center pl-4 md:pl-10 pointer-events-none z-10" style={{ perspective: '800px' }}>
-         {filteredFolders.map((folder, index) => {
-             const relIdx = index - activeRenderIndex;
-             const absIdx = Math.abs(relIdx);
-             if (absIdx > 8) return null;
-
-             const isActive = index === activeRenderIndex;
-             const scale = 1 - absIdx * 0.05;
-             const opacity = Math.max(0.1, 1 - absIdx * 0.15);
-             const translateX = absIdx * 5;
-
-             return (
-               <div 
-                 key={folder.originalIndex}
-                 className={`relative flex flex-col my-[4px] md:my-[5px] py-1 cursor-pointer pointer-events-auto transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] group ${isActive ? 'active' : ''}`}
-                 style={{
-                   transform: `scale(${scale}) translateX(${translateX}px)`,
-                   opacity,
-                   transformOrigin: 'left center'
-                 }}
-                 onClick={() => handleFolderClick(folder.originalIndex)}
-               >
-                  {/* indicator line */}
-                  <div 
-                     className="absolute -left-4 md:-left-6 top-1/2 h-px -translate-y-1/2 transition-all duration-300"
-                     style={{ 
-                        width: isActive ? '16px' : '0px', 
-                        backgroundColor: isActive ? '#fff' : 'rgba(255,255,255,0.3)',
-                        opacity: isActive ? 1 : 0
-                     }} 
-                  />
-                  
-                  <div className={`font-mono text-[14px] md:text-[20px] font-bold truncate max-w-[200px] sm:max-w-[300px] md:max-w-[420px] tracking-[0.02em] transition-colors duration-300 leading-[1.2] ${isActive ? 'text-[#7DF9FF] drop-shadow-[0_0_8px_rgba(125,249,255,0.5)]' : 'text-white/85 group-hover:text-white'}`}>
-                    {folder.title}
-                  </div>
-                  <div className={`font-mono text-[10px] md:text-[13px] font-normal truncate max-w-[200px] sm:max-w-[300px] md:max-w-[420px] tracking-[0.05em] transition-colors duration-300 leading-[1.3] mt-[2px] ${isActive ? 'text-white/70' : 'text-white/40 group-hover:text-white/70'}`}>
-                    {folder.category} {folder.category === 'Drills Originals' && '★'}
-                  </div>
-               </div>
-             )
-         })}
-         {filteredFolders.length === 0 && (
-             <div className="text-white/30 text-sm mt-10">No games found...</div>
-         )}
-      </div>
-
-      {/* Middle popup for embedded cover (like an album sleeve) */}
-      {activeFolderData && (
-        <div 
-           className="fixed left-4 right-4 md:left-[440px] md:right-auto top-[28%] md:top-[45%] md:-translate-y-[45%] md:w-[420px] pointer-events-auto z-20 perspective-[1000px] animate-in slide-in-from-left fade-in duration-700 ease-out fill-mode-both max-w-[420px] mx-auto scale-[0.8] md:scale-100 origin-top"
-           key={activeFolderData.originalIndex}
+        {/* Gallery / List Toggle */}
+        <div
+          className={`gui-toggle ${isFocused ? 'focused-hide-sm' : ''}`}
+          role="tablist"
+          aria-label="View mode"
         >
-            <div className="relative w-full aspect-square bg-[#111] rounded-lg shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-white/10 flex flex-col items-center justify-center transform transition-transform duration-700 hover:scale-[1.02] hover:rotateY(-5deg)" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-15deg)' }}>
-               
-               {/* Ambient hue */}
-               <div className={`absolute inset-0 rounded-lg opacity-20 ${activeFolderData.category === 'Drills Originals' ? 'bg-[#ffe36d]' : 'bg-[#7DF9FF]'}`} />
-               
-               <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10 pointer-events-none pb-1 border-b border-white/10">
-                  <span className="text-[10px] font-mono tracking-widest text-white/50 uppercase">Album Cover - Visualizer</span>
-                  {activeFolderData.category === 'Drills Originals' && (
-                      <span className="text-[10px] font-bold text-[#ffe36d] border border-[#ffe36d]/50 px-2 rounded-full drop-shadow-md">ORIGINAL</span>
-                  )}
-               </div>
-
-               {/* Embed Game in Album Cover */}
-               <div className="absolute left-6 right-6 top-14 bottom-24 rounded-lg overflow-hidden bg-black/50 border border-white/20 z-10 shadow-inner">
-                   <iframe src={activeFolderData.gameUrl} className="w-full h-full opacity-80 pointer-events-none transform scale-[0.95]" frameBorder="0" scrolling="no" />
-                   {/* Overlay to catch clicks and keep styling */}
-                   <div className="absolute inset-0 z-10 bg-gradient-to-tr from-black/50 via-transparent to-white/10 pointer-events-none mix-blend-overlay" />
-               </div>
-               
-               <div className="absolute bottom-6 left-6 right-6 z-10 p-3 backdrop-blur-md bg-black/40 rounded-lg border border-white/10 outline outline-1 outline-black/30 pointer-events-none shadow-xl">
-                  <div className="text-[18px] leading-tight font-bold font-mono text-white line-clamp-2 drop-shadow-lg mb-1">{activeFolderData.title}</div>
-                  <div className="text-[10px] text-white/60 font-mono drop-shadow-md uppercase tracking-wider">{activeFolderData.category}</div>
-               </div>
-
-               {/* Vinyl Record decorative edge sticking out slightly */}
-               <div className="absolute right-[-35px] top-[10%] bottom-[10%] w-[60px] bg-[#0a0a0a] rounded-r-full shadow-[inset_10px_0_20px_rgba(0,0,0,1)] border-y border-r border-white/5 -z-10 flex items-center justify-end pr-3 overflow-hidden">
-                  <div className="absolute inset-0 rounded-r-full mix-blend-overlay opacity-20" style={{ background: 'conic-gradient(from 45deg, red, yellow, lime, aqua, blue, magenta, red)' }} />
-                  {/* vinyl ridges */}
-                  <div className="absolute right-1 w-[20px] h-full border-r-[2px] border-white/5 rounded-r-full pointer-events-none" />
-                  <div className="absolute right-3 w-[20px] h-full border-r-[2px] border-white/5 rounded-r-full pointer-events-none" />
-                  <div className="absolute right-5 w-[20px] h-full border-r-[2px] border-white/5 rounded-r-full pointer-events-none" />
-               </div>
-            </div>
-
-            <div className="mt-8 relative group">
-               <div className="absolute -inset-1 bg-gradient-to-r from-[#7DF9FF] to-[#3b82f6] rounded-xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
-               <button 
-                  className="relative w-full py-4 rounded-xl font-bold font-mono uppercase tracking-widest bg-black text-[#7DF9FF] border border-[#7DF9FF]/50 hover:bg-[#7DF9FF] hover:text-black transition-all duration-300 transform group-hover:translate-y-[-2px]"
-                  onClick={() => window.open(activeFolderData.gameUrl, '_blank')}
-               >
-                   O P E N &nbsp;&nbsp; G A M E
-               </button>
-            </div>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'gallery'}
+            className={`gui-toggle-btn ${view === 'gallery' ? 'active' : ''}`}
+            onClick={() => returnToRoom(true)}
+          >
+            GALLERY
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'list'}
+            className={`gui-toggle-btn ${view === 'list' ? 'active' : ''}`}
+            onClick={() => openList('All')}
+          >
+            LIST
+          </button>
         </div>
-      )}
 
-      {/* Now Playing Bar with more details */}
-      {activeFolderData && (
-        <div className="fixed bottom-4 md:bottom-8 left-4 md:left-10 right-4 md:right-[380px] flex items-center gap-3 md:gap-5 bg-black/50 border border-white/10 rounded-2xl px-4 md:px-5 py-3 md:py-4 backdrop-blur-xl z-30 shadow-2xl pointer-events-auto overflow-hidden">
-           {/* Cover Thumbnail */}
-           <div className={`w-10 h-10 md:w-14 md:h-14 rounded-lg shrink-0 flex items-center justify-center border border-white/20 shadow-inner ${activeFolderData.color}`}>
-              <Icon name={activeFolderData.icon} className="w-5 h-5 md:w-7 md:h-7 text-white/80" />
-           </div>
-           
-           {/* Info */}
-           <div className="flex-1 min-w-0 flex flex-col justify-center px-1 md:px-2">
-              <div className="text-[14px] md:text-[18px] font-bold text-white truncate tracking-[0.02em] flex items-center drop-shadow-md">
-                 {activeFolderData.title}
-              </div>
-              <div className="text-[10px] md:text-[13px] text-white/70 mt-0.5 md:mt-1 tracking-wide line-clamp-2 leading-tight md:leading-relaxed max-w-3xl font-sans drop-shadow-md">
-                 <span className="font-semibold text-[#7DF9FF] mr-2">[{activeFolderData.category}]</span> 
-                 {activeFolderData.description}
-              </div>
-           </div>
+        {/* Bottom-Left Editorial Caption */}
+        <div className={`gui-caption ${isFocused ? 'focused-hide-sm' : ''}`}>
+          <div className="gui-kicker">
+            <span className="mask-line">
+              <span className="mask-inner mask-delay-2">YOU ARE WALKING PAST</span>
+            </span>
+          </div>
+          <div className="gui-headline-row">
+            <h1 className="gui-headline">
+              <span className="mask-line">
+                <span className="mask-inner mask-delay-3">GAME SEASON</span>
+              </span>
+            </h1>
+            <button
+              type="button"
+              className="gui-enter-link"
+              onClick={() => openList('All')}
+            >
+              <span className="mask-line">
+                <span className="mask-inner mask-delay-4">ENTER THE COLLECTION →</span>
+              </span>
+            </button>
+          </div>
+        </div>
 
-           {/* Controls */}
-           <div className="flex items-center gap-2 md:gap-4 shrink-0">
-              <button 
-                className="text-white/60 hover:text-white transition-colors p-2 md:p-3 hover:scale-110" 
+        {/* Mobile Thumb-Zone Action Card when focused on a painting */}
+        {isFocused && focusedGameIndex !== null && FOLDER_DATA[focusedGameIndex] && (
+          <div className="mobile-focus-bar">
+            <div className="mobile-focus-meta">
+              <span className="mobile-focus-cat">
+                {FOLDER_DATA[focusedGameIndex].category} · #{String(focusedGameIndex + 1).padStart(2, '0')}
+              </span>
+              <span className="mobile-focus-title">
+                {FOLDER_DATA[focusedGameIndex].content.title}
+              </span>
+            </div>
+            <div className="mobile-focus-actions">
+              <button
+                type="button"
+                className="mobile-focus-open"
                 onClick={() => {
-                   if (activeRenderIndex > 0) handleFolderClick(filteredFolders[activeRenderIndex - 1].originalIndex);
+                  const w = window.innerWidth;
+                  const h = window.innerHeight;
+                  openGameDetail(focusedGameIndex, {
+                    left: w * 0.25,
+                    top: h * 0.2,
+                    width: w * 0.5,
+                    height: h * 0.45,
+                  });
                 }}
-              >◀◀</button>
-              
-              <button 
-                className="text-black bg-white hover:bg-[#7DF9FF] hover:scale-105 transition-all w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center text-sm md:text-xl shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
-                onClick={() => window.open(activeFolderData.gameUrl, '_blank')}
               >
-                 ▶
+                OPEN GAME →
               </button>
+              <button
+                type="button"
+                className="mobile-focus-back"
+                onClick={() => galleryRef.current?.stepBack()}
+              >
+                BACK
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
-              <button 
-                className="text-white/60 hover:text-white transition-colors p-2 md:p-3 hover:scale-110" 
-                onClick={() => {
-                   if (activeRenderIndex < filteredFolders.length - 1) handleFolderClick(filteredFolders[activeRenderIndex + 1].originalIndex);
+      {/* 4. Floating Hover Pill */}
+      <div
+        className={`hover-pill ${view === 'gallery' && hoverPill.visible ? 'visible' : ''}`}
+        style={{
+          left: `${hoverPill.x}px`,
+          top: `${hoverPill.y}px`,
+        }}
+      >
+        OPEN THE GAME
+      </div>
+
+      {/* 5. Game Detail Page */}
+      <GameDetailPage
+        gameIndex={detailGameIndex}
+        isOpen={view === 'detail'}
+        flyerRect={flyerRect}
+        isBookmarked={detailGameIndex !== null && bookmarks.includes(detailGameIndex)}
+        onToggleBookmark={handleToggleBookmark}
+        onAddToQueue={handleAddToQueue}
+        onSelectGame={openGameDetail}
+        onClose={() => returnToRoom(true)}
+      />
+
+      {/* 6. List / Catalog Page */}
+      <GameListView
+        isOpen={view === 'list'}
+        activeCategory={listCategory}
+        onCategoryChange={setListCategory}
+        onSelectGame={openGameDetail}
+      />
+
+      {/* 7. Play Queue Drawer */}
+      <QueueDrawer
+        isOpen={isDrawerOpen}
+        items={queueItems}
+        onClose={() => setIsDrawerOpen(false)}
+        onRemoveItem={handleRemoveQueueItem}
+        onOpenGame={(idx) => {
+          setFlyerRect(null);
+          setDetailGameIndex(idx);
+          setLastGameIndex(idx);
+          setView('detail');
+        }}
+      />
+
+      {/* 8. Search Modal (⌘K) */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onJumpToInRoom={handleJumpInRoom}
+        onOpenDetail={(idx) => {
+          setFlyerRect(null);
+          setDetailGameIndex(idx);
+          setLastGameIndex(idx);
+          setView('detail');
+        }}
+      />
+
+      {/* 9. Help / Navigation Guide Modal */}
+      {isHelpOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            background: 'rgba(58, 53, 80, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setIsHelpOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: 'var(--page)',
+              border: '1px solid var(--ink-35)',
+              padding: '28px',
+              boxShadow: '0 20px 60px rgba(58, 53, 80, 0.18)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '16px',
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-cond)',
+                  fontWeight: 600,
+                  fontSize: '28px',
+                  margin: 0,
+                  textTransform: 'uppercase',
                 }}
-              >▶▶</button>
-           </div>
-           
-           {/* Progress Line */}
-           <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 rounded-b-2xl overflow-hidden">
-              <div className="h-full bg-[#7DF9FF] w-[35%] shadow-[0_0_10px_#7DF9FF] opacity-80 mix-blend-screen"></div>
-           </div>
+              >
+                GALLERY GUIDE
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                aria-label="Close help"
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} strokeWidth={1.6} />
+              </button>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                fontFamily: 'var(--font-serif)',
+                fontSize: '15px',
+                lineHeight: 1.55,
+                color: 'var(--ink-60)',
+              }}
+            >
+              <p style={{ margin: 0 }}>
+                <strong style={{ color: 'var(--ink)' }}>Walk the Corridor:</strong>{' '}
+                Scroll, drag horizontally or vertically, or use the circular arrows and keyboard arrow keys to glide through the circular gallery.
+              </p>
+              <p style={{ margin: 0 }}>
+                <strong style={{ color: 'var(--ink)' }}>Inspect &amp; Play:</strong>{' '}
+                Click any framed poster on either wall to focus on it. Click it again to open the game detail page, switch to Live Preview, or launch the game.
+              </p>
+              <p style={{ margin: 0 }}>
+                <strong style={{ color: 'var(--ink)' }}>Quick Search:</strong>{' '}
+                Press ⌘K (or Ctrl+K) anytime to search all 25 games and jump directly to a title.
+              </p>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

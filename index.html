@@ -2,53 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IELTS Drills - Game Hub </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Game Hub - Interactive Showcase</title>
+    <meta
+      name="description"
+      content="IELTS Drills Game Hub — A 3D curved gallery showcase of interactive vocabulary, escape room, puzzle, and creative web games."
+    />
+    <meta property="og:title" content="Game Hub - Interactive Showcase" />
+    <meta
+      property="og:description"
+      content="IELTS Drills Game Hub — A 3D curved gallery showcase of interactive vocabulary, escape room, puzzle, and creative web games."
+    />
     <link rel="icon" href="https://pbs.twimg.com/media/G9_wgMRbAAAW-ou?format=jpg&name=large" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400..500;1,6..72,400&family=Oswald:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        overscroll-behavior: none;
-        touch-action: none;
-      }
-      .background-orb {
-        position: fixed;
-        top: -250px; /* offset for centering */
-        left: -250px; /* offset for centering */
-        width: 500px;
-        height: 500px;
-        background: radial-gradient(circle, rgba(131, 58, 180, 0.2), transparent 60%);
-        border-radius: 50%;
-        filter: blur(80px);
-        pointer-events: none;
-        z-index: 0;
-        transition: transform 0.2s linear;
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
-  }
-}
-</script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
