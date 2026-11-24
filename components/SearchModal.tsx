@@ -45,13 +45,16 @@ const SearchModal: React.FC<SearchModalProps> = ({
     <div
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 'var(--app-top, 0px)',
+        left: 0,
+        right: 0,
+        height: 'var(--app-height, 100dvh)',
         zIndex: 50,
         background: 'rgba(58, 53, 80, 0.28)',
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: 'max(16px, 6vh) 12px 16px',
+        padding: 'max(14px, 4vh) 12px max(16px, var(--mobile-bottom-safe, 16px))',
       }}
       onClick={onClose}
     >
@@ -64,7 +67,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
           boxShadow: '0 20px 60px rgba(58, 53, 80, 0.18)',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '82vh',
+          maxHeight: 'calc(var(--app-height, 100dvh) - 28px - var(--mobile-bottom-safe, 0px))',
         }}
         onClick={(e) => e.stopPropagation()}
       >

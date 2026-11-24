@@ -18,6 +18,11 @@
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "DM Mono", ui-monospace, monospace;
   --font-cond: "Oswald", "Arial Narrow", sans-serif;
+
+  --app-top: 0px;
+  --app-height: 100dvh;
+  --vv-bottom: 0px;
+  --mobile-bottom-safe: 0px;
 }
 
 *,
@@ -1045,18 +1050,20 @@ a {
   :root {
     --u: 1px;
     --w: 1px;
+    --mobile-bottom-safe: max(82px, calc(env(safe-area-inset-bottom, 0px) + 56px));
   }
 
-  #gallery,
   .gui,
   #page,
   #list,
   .drawer {
-    height: 100%;
-    height: 100dvh;
+    top: var(--app-top, 0px);
+    height: var(--app-height, 100dvh);
+    bottom: auto;
   }
 
   .nav {
+    top: var(--app-top, 0px);
     height: calc(58px + env(safe-area-inset-top, 0px));
     padding: env(safe-area-inset-top, 0px) 14px 0;
   }
@@ -1102,16 +1109,16 @@ a {
   }
 
   .gui-hint {
-    top: calc(68px + env(safe-area-inset-top, 0px));
+    top: calc(66px + env(safe-area-inset-top, 0px));
     left: 14px;
     right: 14px;
     bottom: auto;
     text-align: left;
     font-size: 12px;
-    line-height: 1.5;
-    padding: 8px 12px;
+    line-height: 1.45;
+    padding: 7px 12px;
     border-radius: 10px;
-    background: rgba(255, 249, 236, 0.76);
+    background: rgba(255, 249, 236, 0.8);
     border: 1px solid var(--ink-15);
     width: fit-content;
     max-width: calc(100vw - 28px);
@@ -1126,14 +1133,15 @@ a {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    position: fixed;
+    position: absolute;
     left: 14px;
     right: 14px;
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--mobile-bottom-safe);
     padding: 14px;
-    background: rgba(255, 249, 239, 0.96);
+    background: rgba(255, 249, 239, 0.98);
     border: 1.5px solid var(--ink);
-    box-shadow: 0 14px 36px rgba(58, 53, 80, 0.18);
+    border-radius: 14px;
+    box-shadow: 0 14px 36px rgba(58, 53, 80, 0.2);
     z-index: 29;
   }
 
@@ -1154,7 +1162,7 @@ a {
   .mobile-focus-title {
     font-family: var(--font-cond);
     font-weight: 600;
-    font-size: 26px;
+    font-size: 24px;
     line-height: 1.05;
     text-transform: uppercase;
   }
@@ -1177,6 +1185,7 @@ a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 8px;
   }
 
   .mobile-focus-back {
@@ -1192,12 +1201,13 @@ a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 8px;
   }
 
   .gui-caption {
     left: 14px;
     right: 14px;
-    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--mobile-bottom-safe) + 60px);
     transition: opacity 0.2s ease;
   }
 
@@ -1207,8 +1217,8 @@ a {
   }
 
   .gui-kicker {
-    font-size: 12px;
-    margin: 0 0 6px 2px;
+    font-size: 11.5px;
+    margin: 0 0 4px 2px;
   }
 
   .gui-headline-row {
@@ -1217,24 +1227,24 @@ a {
   }
 
   .gui-headline {
-    font-size: min(17vw, 13vh);
-    line-height: 0.88;
+    font-size: clamp(34px, 11.5vw, 56px);
+    line-height: 0.9;
     white-space: normal;
-    max-width: 82vw;
+    max-width: 85vw;
   }
 
   .gui-enter-link {
     position: static;
-    margin-top: 10px;
+    margin-top: 6px;
     margin-bottom: 0;
     font-size: 13px;
     min-height: 36px;
-    padding: 6px 2px 4px;
+    padding: 4px 2px;
   }
 
   .gui-arrows {
     left: 14px;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--mobile-bottom-safe);
     top: auto;
     flex-direction: row;
     gap: 10px;
@@ -1249,13 +1259,16 @@ a {
   .gui-arrow-btn {
     width: 48px;
     height: 48px;
-    background: rgba(255, 249, 236, 0.88);
+    background: rgba(255, 249, 236, 0.92);
+    box-shadow: 0 6px 18px rgba(58, 53, 80, 0.12);
   }
 
   .gui-toggle {
     right: 14px;
-    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--mobile-bottom-safe);
     padding: 3px;
+    background: rgba(255, 249, 236, 0.92);
+    box-shadow: 0 6px 18px rgba(58, 53, 80, 0.12);
   }
 
   .gui-toggle-btn {
@@ -1346,27 +1359,32 @@ a {
 
   .mobile-detail-dock {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: calc(var(--mobile-bottom-safe) + var(--vv-bottom, 0px));
+    left: 12px;
+    right: 12px;
     display: flex;
     gap: 10px;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-    background: rgba(255, 249, 239, 0.98);
-    border-top: 1px solid var(--ink-15);
-    box-shadow: 0 -8px 28px rgba(58, 53, 80, 0.1);
+    padding: 10px;
+    background: rgba(255, 249, 239, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: 0 10px 32px rgba(58, 53, 80, 0.2);
     z-index: 35;
   }
 
   .mobile-detail-dock .primary-cta {
-    height: 52px;
+    height: 50px;
     font-size: 17px;
+    border-radius: 8px;
   }
 
   .mobile-detail-dock .secondary-cta {
-    height: 52px;
+    height: 50px;
     padding: 0 18px;
     font-size: 15px;
+    border-radius: 8px;
   }
 
   .accordion-trigger {
@@ -1380,7 +1398,7 @@ a {
 
   .collection-band {
     margin-top: 32px;
-    padding: 28px 0 calc(108px + env(safe-area-inset-bottom, 0px)) 16px;
+    padding: 28px 0 calc(var(--mobile-bottom-safe) + 104px) 16px;
   }
 
   .collection-heading {
@@ -1405,7 +1423,7 @@ a {
 
   /* List View Mobile */
   #list {
-    padding: calc(74px + env(safe-area-inset-top, 0px)) 16px calc(72px + env(safe-area-inset-bottom, 0px));
+    padding: calc(74px + env(safe-area-inset-top, 0px)) 16px calc(var(--mobile-bottom-safe) + 32px);
   }
 
   .list-heading {
@@ -1444,7 +1462,26 @@ a {
 
   .drawer {
     width: min(92vw, 400px);
-    padding: calc(20px + env(safe-area-inset-top, 0px)) 18px calc(20px + env(safe-area-inset-bottom, 0px));
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 18px calc(var(--mobile-bottom-safe) + 14px);
+  }
+}
+
+/* Installed PWA standalone mode has no browser address bar */
+@media (display-mode: standalone) and (max-width: 819px),
+  (display-mode: standalone) and (orientation: portrait) and (max-width: 1100px) {
+  :root {
+    --mobile-bottom-safe: max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+  }
+}
+
+/* Compact landscape mobile viewports */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --mobile-bottom-safe: max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  }
+
+  .gui-caption {
+    display: none;
   }
 }
 

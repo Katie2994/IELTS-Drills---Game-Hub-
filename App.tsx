@@ -51,6 +51,25 @@ export default function App() {
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
 
   useEffect(() => {
+    const syncViewportVars = () => {
+      const vv = window.visualViewport;
+      const appTop = vv ? Math.max(0, Math.round(vv.offsetTop)) : 0;
+      const appHeight = vv ? Math.round(vv.height) : window.innerHeight;
+      const obscuredBottom = vv
+        ? Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)))
+        : 0;
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty('--app-top', `${appTop}px`);
+      rootStyle.setProperty('--app-height', `${appHeight}px`);
+      rootStyle.setProperty('--vv-bottom', `${obscuredBottom}px`);
+    };
+
+    syncViewportVars();
+    window.addEventListener('resize', syncViewportVars);
+    window.addEventListener('orientationchange', syncViewportVars);
+    window.visualViewport?.addEventListener('resize', syncViewportVars);
+    window.visualViewport?.addEventListener('scroll', syncViewportVars);
+
     const unlock = () => {
       const started = galleryAudio.unlockAndAutoStart();
       if (started) {
@@ -61,6 +80,10 @@ export default function App() {
     window.addEventListener('keydown', unlock, { once: true });
 
     return () => {
+      window.removeEventListener('resize', syncViewportVars);
+      window.removeEventListener('orientationchange', syncViewportVars);
+      window.visualViewport?.removeEventListener('resize', syncViewportVars);
+      window.visualViewport?.removeEventListener('scroll', syncViewportVars);
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
       galleryAudio.stopBgm(false);
