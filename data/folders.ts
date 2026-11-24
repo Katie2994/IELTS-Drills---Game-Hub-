@@ -145,6 +145,16 @@ export const FOLDER_DATA: BaseFolderInfo[] = [
     }, 
     icon: 'Body' 
   },
+  { 
+    title: 'Ba Ba Dum', 
+    gameUrl: 'https://babadum.com/play/?lang=7&game=1',
+    category: 'Giáo Dục',
+    content: { 
+      title: 'Ba Ba Dum (Vocabulary)', 
+      description: 'Trò chơi học từ vựng trực quan sinh động với hình minh họa và phát âm chuẩn, giúp luyện phản xạ từ vựng qua các mini-game ghép hình và chữ đầy thú vị.' 
+    }, 
+    icon: 'Vocab' 
+  },
 
   // Quizzes & Puzzles
   { 

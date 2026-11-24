@@ -86,7 +86,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search 25 games, categories, or themes…"
+            placeholder={`Search ${FOLDER_DATA.length} games, categories, or themes…`}
             style={{
               flex: 1,
               border: 'none',

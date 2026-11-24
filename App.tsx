@@ -365,7 +365,7 @@ export default function App() {
             type="button"
             className="nav-icon-btn nav-hide-sm"
             onClick={() => {
-              const nextIdx = (lastGameIndex + 1) % 25;
+              const nextIdx = (lastGameIndex + 1) % FOLDER_DATA.length;
               handleJumpInRoom(nextIdx);
             }}
             aria-label="Discover next game"
@@ -685,7 +685,7 @@ export default function App() {
               </p>
               <p style={{ margin: 0 }}>
                 <strong style={{ color: 'var(--ink)' }}>Quick Search:</strong>{' '}
-                Press ⌘K (or Ctrl+K) anytime to search all 25 games and jump directly to a title.
+                Press ⌘K (or Ctrl+K) anytime to search all {FOLDER_DATA.length} games and jump directly to a title.
               </p>
             </div>
           </div>
