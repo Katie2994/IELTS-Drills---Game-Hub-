@@ -177,6 +177,7 @@ const GameDetailPage: React.FC<GameDetailPageProps> = ({
   };
 
   return (
+    <>
     <section
       id="page"
       ref={sectionRef}
@@ -464,30 +465,33 @@ const GameDetailPage: React.FC<GameDetailPageProps> = ({
               })}
             </div>
           </div>
-
-          {/* Sticky Mobile Bottom Action Dock */}
-          <div className="mobile-detail-dock">
-            <a
-              href={game.gameUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="primary-cta"
-              style={{ gap: '8px' }}
-            >
-              <span>PLAY GAME</span>
-              <ExternalLink size={17} strokeWidth={1.8} />
-            </a>
-            <button
-              type="button"
-              onClick={() => onAddToQueue(gameIndex, frame, pace)}
-              className="secondary-cta"
-            >
-              + QUEUE
-            </button>
-          </div>
         </>
       )}
     </section>
+
+    {/* Fixed Mobile Bottom Action Dock — always visible at bottom of screen */}
+    {isOpen && game && gameIndex !== null && (
+      <div className="mobile-detail-dock">
+        <a
+          href={game.gameUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="primary-cta"
+          style={{ gap: '8px' }}
+        >
+          <span>PLAY GAME</span>
+          <ExternalLink size={17} strokeWidth={1.8} />
+        </a>
+        <button
+          type="button"
+          onClick={() => onAddToQueue(gameIndex, frame, pace)}
+          className="secondary-cta"
+        >
+          + QUEUE
+        </button>
+      </div>
+    )}
+    </>
   );
 };
 
